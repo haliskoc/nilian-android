@@ -101,10 +101,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Jetpack Glance (App Widgets)
-    implementation(libs.androidx.glance.appwidget)
-    implementation(libs.androidx.glance.material3)
-
     // Ktor (Local LAN Sync & Networking)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
