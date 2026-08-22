@@ -111,33 +111,24 @@ class NilianFeatureExpansionTest {
 
     @Test
     fun instantiateTemplate_generatesValidTimeBlocksForDate() {
-        val defaultTemplate = dayTemplateEngine.defaultTemplates.first()
-        val blocks = dayTemplateEngine.instantiateTemplate(defaultTemplate, testDate)
+        val defaultTemplate = dayTemplateEngine.getPredefinedTemplates().first()
+        val blocks = dayTemplateEngine.instantiateTemplateBlocks(defaultTemplate.blocks, testDate)
 
         assertThat(blocks).isNotEmpty()
         assertThat(blocks.all { it.date == testDate }).isTrue()
-        assertThat(blocks.first().blockType).isEqualTo(BlockType.DEEP_WORK)
+        assertThat(blocks.first().blockType).isEqualTo(BlockType.REST)
     }
 
     @Test
-    fun filterNonConflictingBlocks_removesClashesWithExistingEvents() {
-        val template = dayTemplateEngine.defaultTemplates.first()
-        val templateBlocks = dayTemplateEngine.instantiateTemplate(template, testDate)
+    fun getPredefinedTemplates_returnsAllThreeArchetypes() {
+        val templates = dayTemplateEngine.getPredefinedTemplates()
 
-        // Event from 09:30 to 11:00 clashes with Morning Deep Work (09:00 - 12:00)
-        val clashEvent = Event(
-            id = 99L,
-            title = "Zorunlu Toplantı",
-            startDateTime = LocalDateTime.of(testDate, LocalTime.of(9, 30)),
-            endDateTime = LocalDateTime.of(testDate, LocalTime.of(11, 0)),
-            category = EventCategory.MEETING
+        assertThat(templates).hasSize(3)
+        assertThat(templates.map { it.type.name }).containsExactly(
+            "EXAM_DAY",
+            "DEEP_CODING",
+            "WEEKEND_REST"
         )
-
-        val filtered = dayTemplateEngine.filterNonConflictingBlocks(templateBlocks, listOf(clashEvent), testDate)
-
-        // Clashing block (09:00 - 12:00) is filtered out
-        assertThat(filtered.any { it.title == "Sabah Derin Odak" }).isFalse()
-        assertThat(filtered.any { it.title == "Hareket / Spor" }).isTrue()
     }
 
     // =====================================================================================
