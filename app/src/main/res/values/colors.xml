@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand & Accent Colors -->
+    <color name="sage_green">#4E876A</color>
+    <color name="sage_green_light">#70AA8B</color>
+    <color name="sage_green_dark">#345D48</color>
+    <color name="muted_amber">#D99B43</color>
+    <color name="soft_coral">#D96B43</color>
+
+    <!-- Dark Theme Backgrounds -->
+    <color name="dark_background">#121417</color>
+    <color name="dark_surface">#1B1F24</color>
+    <color name="dark_surface_variant">#22272E</color>
+    <color name="dark_border">#2A3038</color>
+
+    <!-- Light Theme Backgrounds -->
+    <color name="light_background">#F8F9FA</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_surface_variant">#F1F3F5</color>
+    <color name="light_border">#E9ECEF</color>
+
+    <!-- System & Icon Colors -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+</resources>

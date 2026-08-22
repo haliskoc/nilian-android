@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Leaf / Plant symbol representing Nilian Nature & Calmness -->
+    <path
+        android:fillColor="#4E876A"
+        android:pathData="M54,28 C42,40 38,56 46,68 C50,74 58,78 66,74 C74,70 78,58 74,46 C70,36 60,30 54,28 Z" />
+    <path
+        android:strokeColor="#F8F9FA"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M48,66 C54,58 60,48 64,36" />
+</vector>
