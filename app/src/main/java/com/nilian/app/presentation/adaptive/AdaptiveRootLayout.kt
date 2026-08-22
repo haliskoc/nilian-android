@@ -226,31 +226,12 @@ fun AdaptiveRootLayout(
                     }
 
                     NilianDestination.INBOX -> {
-                        val todayState by todayViewModel.uiState.collectAsState()
-                        var searchQuery by rememberSaveable { mutableStateOf("") }
-                        var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
-                        var showArchived by rememberSaveable { mutableStateOf(false) }
-
                         com.nilian.app.presentation.inbox.InboxScreen(
-                            uiState = com.nilian.app.presentation.inbox.InboxUiState(
-                                notes = todayState.recentNotes,
-                                searchQuery = searchQuery,
-                                selectedTagFilter = tagFilter,
-                                showArchived = showArchived,
-                                isBrainDumpSheetVisible = todayState.isBrainDumpSheetVisible
-                            ),
-                            onSaveNote = todayViewModel::onSaveBrainDumpNote,
-                            onEditNote = { _, _, _ -> },
-                            onDeleteNote = { /* delete */ },
-                            onArchiveNote = { /* archive */ },
-                            onConvertToTask = todayViewModel::onConvertToTask,
-                            onConvertToEvent = todayViewModel::onConvertToEvent,
-                            onConvertToGoal = todayViewModel::onConvertToGoal,
-                            onSearchQueryChange = { searchQuery = it },
-                            onTagFilterSelect = { tagFilter = it },
-                            onToggleShowArchived = { showArchived = !showArchived },
-                            onOpenBrainDumpSheet = todayViewModel::onOpenBrainDump,
-                            onDismissBrainDumpSheet = todayViewModel::onDismissBrainDump
+                            onBackClick = { currentDestination = NilianDestination.TODAY },
+                            onSaveTasks = { tasks ->
+                                tasksViewModel.onSaveBatchTasks(tasks)
+                                currentDestination = NilianDestination.TASKS
+                            }
                         )
                     }
 

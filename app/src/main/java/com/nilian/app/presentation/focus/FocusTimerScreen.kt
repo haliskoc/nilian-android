@@ -49,7 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nilian.app.core.ui.theme.AmberAccent
+import com.nilian.app.core.ui.theme.AmberSecondary
 import com.nilian.app.core.ui.theme.SagePrimary
 import kotlinx.coroutines.delay
 
@@ -170,7 +170,7 @@ fun FocusTimerScreen(
                 Text(
                     text = "🔥 $completedSessions Seans",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = AmberAccent
+                    color = AmberSecondary
                 )
             }
         }
