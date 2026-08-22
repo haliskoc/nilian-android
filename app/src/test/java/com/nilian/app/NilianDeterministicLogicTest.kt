@@ -402,9 +402,9 @@ class NilianDeterministicLogicTest {
         // 1. Serialize to JSON string
         val jsonString = jsonBackupRestore.exportToJson(originalData)
         assertThat(jsonString).isNotEmpty()
-        assertThat(jsonString).contains(""Kotlin Refactor"")
-        assertThat(jsonString).contains(""Sprint Retrospective"")
-        assertThat(jsonString).contains(""Nilian 1.0 Release"")
+        assertThat(jsonString).contains("Kotlin Refactor")
+        assertThat(jsonString).contains("Sprint Retrospective")
+        assertThat(jsonString).contains("Nilian 1.0 Release")
 
         // 2. Parse back from JSON string
         val parsedData = jsonBackupRestore.parseFromJson(jsonString)
