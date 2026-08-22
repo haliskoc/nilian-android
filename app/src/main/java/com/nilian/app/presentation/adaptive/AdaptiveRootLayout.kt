@@ -246,7 +246,12 @@ fun AdaptiveRootLayout(
                             uiState = lockUiState,
                             onDigitClick = mainViewModel::onDigitClick,
                             onDeleteClick = mainViewModel::onDeleteClick,
-                            onBiometricsClick = mainViewModel::onBiometricsClick,
+                            onBiometricsClick = {
+                                val activity = context as? androidx.fragment.app.FragmentActivity
+                                if (activity != null) {
+                                    mainViewModel.onBiometricsClick(activity)
+                                }
+                            },
                             onForgotPinClick = mainViewModel::onForgotPinClick,
                             onDismissForgotPinDialog = mainViewModel::onDismissForgotPinDialog
                         )
