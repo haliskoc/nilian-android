@@ -10,6 +10,7 @@ import com.nilian.app.domain.model.HabitItem
 import com.nilian.app.domain.model.Task
 import com.nilian.app.domain.model.TaskItem
 import com.nilian.app.domain.model.toItem
+import com.nilian.app.domain.model.toDomain
 import com.nilian.app.domain.repository.GoalRepository
 import com.nilian.app.domain.repository.HabitRepository
 import com.nilian.app.domain.repository.TaskRepository

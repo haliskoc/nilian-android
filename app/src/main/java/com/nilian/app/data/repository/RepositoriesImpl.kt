@@ -199,7 +199,7 @@ class HabitRepositoryImpl(
     }
 
     override fun getAllHabitsWithLogs(): Flow<List<HabitWithLogs>> {
-        return habitDao.getHabitsWithLogs()
+        return habitDao.getAllHabitsWithLogs()
             .map { list -> list.map { it.toDomain() } }
             .flowOn(ioDispatcher)
     }

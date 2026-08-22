@@ -3,7 +3,7 @@ package com.nilian.app.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.nilian.app.domain.model.DayOfWeek
+import java.time.DayOfWeek
 import com.nilian.app.domain.model.Goal
 import com.nilian.app.domain.model.Habit
 import com.nilian.app.domain.model.HabitItem

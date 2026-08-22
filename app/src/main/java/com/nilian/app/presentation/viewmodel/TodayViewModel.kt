@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nilian.app.domain.model.ConflictItem
-import com.nilian.app.domain.model.DayOfWeek
+import java.time.DayOfWeek
 import com.nilian.app.domain.model.Event
 import com.nilian.app.domain.model.FreeSlotItem
 import com.nilian.app.domain.model.Habit
@@ -14,6 +14,7 @@ import com.nilian.app.domain.model.Task
 import com.nilian.app.domain.model.TaskItem
 import com.nilian.app.domain.model.TimeBlock
 import com.nilian.app.domain.model.toItem
+import com.nilian.app.domain.model.toDomain
 import com.nilian.app.domain.model.toUiConflictItem
 import com.nilian.app.domain.model.toUiItem
 import com.nilian.app.domain.repository.EventRepository
