@@ -158,6 +158,14 @@ class TasksViewModel(
         }
     }
 
+    fun onSaveBatchTasks(tasks: List<Task>) {
+        viewModelScope.launch {
+            tasks.forEach { task ->
+                taskRepository.insertTask(task)
+            }
+        }
+    }
+
     class Factory(
         private val taskRepository: TaskRepository,
         private val goalRepository: GoalRepository

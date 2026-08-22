@@ -17,17 +17,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -63,7 +67,9 @@ enum class NilianDestination(
     TASKS("tasks", "Tasks", Icons.Filled.TaskAlt, Icons.Outlined.TaskAlt, showInNavigationBar = true),
     HABITS("habits", "Habits", Icons.Filled.SelfImprovement, Icons.Outlined.SelfImprovement, showInNavigationBar = true),
     GOALS("goals", "Goals", Icons.Filled.Flag, Icons.Outlined.Flag, showInNavigationBar = true),
-    SETTINGS("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings, showInNavigationBar = true);
+    SETTINGS("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings, showInNavigationBar = true),
+    FOCUS_TIMER("focus_timer", "Focus", Icons.Filled.Timer, Icons.Outlined.Timer, showInNavigationBar = false),
+    INBOX("inbox", "Inbox", Icons.Filled.Inbox, Icons.Outlined.Inbox, showInNavigationBar = false);
 
     companion object {
         val navItems = values().filter { it.showInNavigationBar }

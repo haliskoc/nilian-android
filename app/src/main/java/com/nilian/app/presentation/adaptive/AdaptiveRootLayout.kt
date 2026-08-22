@@ -19,8 +19,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.nilian.app.presentation.focus.FocusTimerScreen
 import com.nilian.app.presentation.goals.GoalsScreen
 import com.nilian.app.presentation.habits.HabitsScreen
+import com.nilian.app.presentation.inbox.InboxScreen
 import com.nilian.app.presentation.lock.LockScreen
 import com.nilian.app.presentation.navigation.NilianAdaptiveNavigationScaffold
 import com.nilian.app.presentation.navigation.NilianDestination
@@ -110,7 +112,20 @@ fun AdaptiveRootLayout(
                             },
                             onTaskClick = {
                                 currentDestination = NilianDestination.TASKS
-                            }
+                            },
+                            onGoalClick = {
+                                currentDestination = NilianDestination.GOALS
+                            },
+                            onBrainDumpClick = todayViewModel::onOpenBrainDump,
+                            onDayTemplatesClick = todayViewModel::onOpenDayTemplates,
+                            onDismissBrainDump = todayViewModel::onDismissBrainDump,
+                            onDismissDayTemplates = todayViewModel::onDismissDayTemplates,
+                            onSaveBrainDumpNote = todayViewModel::onSaveBrainDumpNote,
+                            onApplyDayTemplate = todayViewModel::onApplyDayTemplate,
+                            onConvertToTask = todayViewModel::onConvertToTask,
+                            onConvertToEvent = todayViewModel::onConvertToEvent,
+                            onConvertToGoal = todayViewModel::onConvertToGoal,
+                            onFocusSessionCompleted = todayViewModel::insertCompletedTimeBlock
                         )
                     }
 
@@ -199,6 +214,43 @@ fun AdaptiveRootLayout(
                             onClearDataClick = settingsViewModel::onClearDataClick,
                             onConfirmClearData = settingsViewModel::onConfirmClearData,
                             onDismissClearDataDialog = settingsViewModel::onDismissClearDataDialog
+                        )
+                    }
+
+                    NilianDestination.FOCUS_TIMER -> {
+                        FocusTimerScreen(
+                            onBackClick = {
+                                currentDestination = NilianDestination.TODAY
+                            }
+                        )
+                    }
+
+                    NilianDestination.INBOX -> {
+                        val todayState by todayViewModel.uiState.collectAsState()
+                        var searchQuery by rememberSaveable { mutableStateOf("") }
+                        var tagFilter by rememberSaveable { mutableStateOf<String?>(null) }
+                        var showArchived by rememberSaveable { mutableStateOf(false) }
+
+                        com.nilian.app.presentation.inbox.InboxScreen(
+                            uiState = com.nilian.app.presentation.inbox.InboxUiState(
+                                notes = todayState.recentNotes,
+                                searchQuery = searchQuery,
+                                selectedTagFilter = tagFilter,
+                                showArchived = showArchived,
+                                isBrainDumpSheetVisible = todayState.isBrainDumpSheetVisible
+                            ),
+                            onSaveNote = todayViewModel::onSaveBrainDumpNote,
+                            onEditNote = { _, _, _ -> },
+                            onDeleteNote = { /* delete */ },
+                            onArchiveNote = { /* archive */ },
+                            onConvertToTask = todayViewModel::onConvertToTask,
+                            onConvertToEvent = todayViewModel::onConvertToEvent,
+                            onConvertToGoal = todayViewModel::onConvertToGoal,
+                            onSearchQueryChange = { searchQuery = it },
+                            onTagFilterSelect = { tagFilter = it },
+                            onToggleShowArchived = { showArchived = !showArchived },
+                            onOpenBrainDumpSheet = todayViewModel::onOpenBrainDump,
+                            onDismissBrainDumpSheet = todayViewModel::onDismissBrainDump
                         )
                     }
 

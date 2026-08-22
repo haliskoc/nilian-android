@@ -1,27 +1,42 @@
 package com.nilian.app.data.repository
 
+import com.nilian.app.data.local.dao.DailyRitualDao
+import com.nilian.app.data.local.dao.DayTemplateDao
 import com.nilian.app.data.local.dao.EventDao
 import com.nilian.app.data.local.dao.GoalDao
 import com.nilian.app.data.local.dao.HabitDao
+import com.nilian.app.data.local.dao.InboxNoteDao
 import com.nilian.app.data.local.dao.TaskDao
 import com.nilian.app.data.local.dao.TimeBlockDao
+import com.nilian.app.data.local.entity.DailyRitualEntity
+import com.nilian.app.data.local.entity.DayTemplateEntity
 import com.nilian.app.data.local.entity.EventEntity
 import com.nilian.app.data.local.entity.GoalEntity
 import com.nilian.app.data.local.entity.HabitEntity
 import com.nilian.app.data.local.entity.HabitLogEntity
+import com.nilian.app.data.local.entity.InboxNoteEntity
 import com.nilian.app.data.local.entity.TaskEntity
+import com.nilian.app.data.local.entity.TemplateBlockEntity
 import com.nilian.app.data.local.entity.TimeBlockEntity
+import com.nilian.app.domain.model.DailyRitual
+import com.nilian.app.domain.model.DayTemplate
+import com.nilian.app.domain.model.DayTemplateWithBlocks
 import com.nilian.app.domain.model.Event
 import com.nilian.app.domain.model.Goal
 import com.nilian.app.domain.model.Habit
 import com.nilian.app.domain.model.HabitLog
 import com.nilian.app.domain.model.HabitWithLogs
+import com.nilian.app.domain.model.InboxNote
 import com.nilian.app.domain.model.Task
+import com.nilian.app.domain.model.TemplateBlock
 import com.nilian.app.domain.model.TimeBlock
 import com.nilian.app.domain.repository.EventRepository
 import com.nilian.app.domain.repository.GoalRepository
 import com.nilian.app.domain.repository.HabitRepository
+import com.nilian.app.domain.repository.InboxRepository
+import com.nilian.app.domain.repository.RitualRepository
 import com.nilian.app.domain.repository.TaskRepository
+import com.nilian.app.domain.repository.TemplateRepository
 import com.nilian.app.domain.repository.TimeBlockRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -390,6 +405,245 @@ class GoalRepositoryImpl(
 
     override suspend fun deleteAllGoals() = withContext(ioDispatcher) {
         goalDao.deleteAllGoals()
+        Unit
+    }
+}
+
+/**
+ * Concrete implementation of [InboxRepository] using Room [InboxNoteDao].
+ */
+class InboxRepositoryImpl(
+    private val inboxNoteDao: InboxNoteDao,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : InboxRepository {
+
+    override fun getActiveNotes(): Flow<List<InboxNote>> {
+        return inboxNoteDao.getActiveNotes()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun getArchivedNotes(): Flow<List<InboxNote>> {
+        return inboxNoteDao.getArchivedNotes()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun getAllNotes(): Flow<List<InboxNote>> {
+        return inboxNoteDao.getAllNotes()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override suspend fun getNoteById(id: Long): InboxNote? = withContext(ioDispatcher) {
+        inboxNoteDao.getNoteById(id)?.toDomain()
+    }
+
+    override suspend fun insertNote(note: InboxNote): Long = withContext(ioDispatcher) {
+        inboxNoteDao.insert(InboxNoteEntity.fromDomain(note))
+    }
+
+    override suspend fun insertNotes(notes: List<InboxNote>): List<Long> = withContext(ioDispatcher) {
+        inboxNoteDao.insertAll(notes.map { InboxNoteEntity.fromDomain(it) })
+    }
+
+    override suspend fun updateNote(note: InboxNote) = withContext(ioDispatcher) {
+        inboxNoteDao.update(InboxNoteEntity.fromDomain(note))
+        Unit
+    }
+
+    override suspend fun archiveNote(id: Long, isArchived: Boolean) = withContext(ioDispatcher) {
+        inboxNoteDao.setArchived(id, isArchived)
+        Unit
+    }
+
+    override suspend fun deleteNote(note: InboxNote) = withContext(ioDispatcher) {
+        inboxNoteDao.delete(InboxNoteEntity.fromDomain(note))
+        Unit
+    }
+
+    override suspend fun deleteNoteById(id: Long) = withContext(ioDispatcher) {
+        inboxNoteDao.deleteById(id)
+        Unit
+    }
+
+    override suspend fun getActiveNotesSync(): List<InboxNote> = withContext(ioDispatcher) {
+        inboxNoteDao.getActiveNotesSync().map { it.toDomain() }
+    }
+
+    override suspend fun getAllNotesSync(): List<InboxNote> = withContext(ioDispatcher) {
+        inboxNoteDao.getAllNotesSync().map { it.toDomain() }
+    }
+
+    override suspend fun deleteAllNotes() = withContext(ioDispatcher) {
+        inboxNoteDao.deleteAllNotes()
+        Unit
+    }
+}
+
+/**
+ * Concrete implementation of [TemplateRepository] using Room [DayTemplateDao].
+ */
+class TemplateRepositoryImpl(
+    private val dayTemplateDao: DayTemplateDao,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : TemplateRepository {
+
+    override fun getAllTemplates(): Flow<List<DayTemplate>> {
+        return dayTemplateDao.getAllTemplates()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun getTemplatesWithBlocks(): Flow<List<DayTemplateWithBlocks>> {
+        return dayTemplateDao.getTemplatesWithBlocks()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun getTemplateWithBlocks(id: Long): Flow<DayTemplateWithBlocks?> {
+        return dayTemplateDao.getTemplateWithBlocks(id)
+            .map { it?.toDomain() }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun getBlocksForTemplate(templateId: Long): Flow<List<TemplateBlock>> {
+        return dayTemplateDao.getBlocksForTemplate(templateId)
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override suspend fun getTemplateById(id: Long): DayTemplate? = withContext(ioDispatcher) {
+        dayTemplateDao.getTemplateById(id)?.toDomain()
+    }
+
+    override suspend fun getTemplateWithBlocksSync(id: Long): DayTemplateWithBlocks? = withContext(ioDispatcher) {
+        dayTemplateDao.getTemplateWithBlocksSync(id)?.toDomain()
+    }
+
+    override suspend fun insertTemplate(template: DayTemplate): Long = withContext(ioDispatcher) {
+        dayTemplateDao.insertTemplate(DayTemplateEntity.fromDomain(template))
+    }
+
+    override suspend fun insertTemplateWithBlocks(
+        template: DayTemplate,
+        blocks: List<TemplateBlock>
+    ): Long = withContext(ioDispatcher) {
+        dayTemplateDao.insertTemplateWithBlocks(
+            DayTemplateEntity.fromDomain(template),
+            blocks.map { TemplateBlockEntity.fromDomain(it) }
+        )
+    }
+
+    override suspend fun insertTemplateBlock(block: TemplateBlock): Long = withContext(ioDispatcher) {
+        dayTemplateDao.insertTemplateBlock(TemplateBlockEntity.fromDomain(block))
+    }
+
+    override suspend fun insertTemplateBlocks(blocks: List<TemplateBlock>): List<Long> = withContext(ioDispatcher) {
+        dayTemplateDao.insertTemplateBlocks(blocks.map { TemplateBlockEntity.fromDomain(it) })
+    }
+
+    override suspend fun updateTemplate(template: DayTemplate) = withContext(ioDispatcher) {
+        dayTemplateDao.updateTemplate(DayTemplateEntity.fromDomain(template))
+        Unit
+    }
+
+    override suspend fun deleteTemplate(template: DayTemplate) = withContext(ioDispatcher) {
+        dayTemplateDao.deleteTemplate(DayTemplateEntity.fromDomain(template))
+        Unit
+    }
+
+    override suspend fun deleteTemplateById(id: Long) = withContext(ioDispatcher) {
+        dayTemplateDao.deleteTemplateById(id)
+        Unit
+    }
+
+    override suspend fun deleteTemplateBlock(block: TemplateBlock) = withContext(ioDispatcher) {
+        dayTemplateDao.deleteTemplateBlock(TemplateBlockEntity.fromDomain(block))
+        Unit
+    }
+
+    override suspend fun deleteTemplateBlockById(id: Long) = withContext(ioDispatcher) {
+        dayTemplateDao.deleteTemplateBlockById(id)
+        Unit
+    }
+
+    override suspend fun getAllTemplatesSync(): List<DayTemplate> = withContext(ioDispatcher) {
+        dayTemplateDao.getAllTemplatesSync().map { it.toDomain() }
+    }
+
+    override suspend fun getAllTemplatesWithBlocksSync(): List<DayTemplateWithBlocks> = withContext(ioDispatcher) {
+        dayTemplateDao.getTemplatesWithBlocksSync().map { it.toDomain() }
+    }
+
+    override suspend fun deleteAllTemplates() = withContext(ioDispatcher) {
+        dayTemplateDao.deleteAllTemplates()
+        Unit
+    }
+}
+
+/**
+ * Concrete implementation of [RitualRepository] using Room [DailyRitualDao].
+ */
+class RitualRepositoryImpl(
+    private val dailyRitualDao: DailyRitualDao,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : RitualRepository {
+
+    override fun getRitualForDate(date: LocalDate): Flow<DailyRitual?> {
+        return dailyRitualDao.getRitualForDate(date)
+            .map { it?.toDomain() }
+            .flowOn(ioDispatcher)
+    }
+
+    override fun getAllRituals(): Flow<List<DailyRitual>> {
+        return dailyRitualDao.getAllRituals()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+    }
+
+    override suspend fun getRitualForDateSync(date: LocalDate): DailyRitual? = withContext(ioDispatcher) {
+        dailyRitualDao.getRitualForDateSync(date)?.toDomain()
+    }
+
+    override suspend fun getRitualById(id: Long): DailyRitual? = withContext(ioDispatcher) {
+        dailyRitualDao.getRitualById(id)?.toDomain()
+    }
+
+    override suspend fun insertOrUpdateRitual(ritual: DailyRitual): Long = withContext(ioDispatcher) {
+        dailyRitualDao.insertOrUpdate(DailyRitualEntity.fromDomain(ritual))
+    }
+
+    override suspend fun insertRituals(rituals: List<DailyRitual>): List<Long> = withContext(ioDispatcher) {
+        dailyRitualDao.insertAll(rituals.map { DailyRitualEntity.fromDomain(it) })
+    }
+
+    override suspend fun updateRitual(ritual: DailyRitual) = withContext(ioDispatcher) {
+        dailyRitualDao.update(DailyRitualEntity.fromDomain(ritual))
+        Unit
+    }
+
+    override suspend fun deleteRitual(ritual: DailyRitual) = withContext(ioDispatcher) {
+        dailyRitualDao.delete(DailyRitualEntity.fromDomain(ritual))
+        Unit
+    }
+
+    override suspend fun deleteRitualForDate(date: LocalDate) = withContext(ioDispatcher) {
+        dailyRitualDao.deleteForDate(date)
+        Unit
+    }
+
+    override suspend fun deleteRitualById(id: Long) = withContext(ioDispatcher) {
+        dailyRitualDao.deleteById(id)
+        Unit
+    }
+
+    override suspend fun getAllRitualsSync(): List<DailyRitual> = withContext(ioDispatcher) {
+        dailyRitualDao.getAllRitualsSync().map { it.toDomain() }
+    }
+
+    override suspend fun deleteAllRituals() = withContext(ioDispatcher) {
+        dailyRitualDao.deleteAllRituals()
         Unit
     }
 }

@@ -107,6 +107,45 @@ data class Goal(
     val isArchived: Boolean = false
 )
 
+data class InboxNote(
+    val id: Long = 0L,
+    val content: String,
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val isArchived: Boolean = false,
+    val tags: List<String> = emptyList()
+)
+
+data class DayTemplate(
+    val id: Long = 0L,
+    val name: String,
+    val description: String? = null,
+    val iconName: String? = null,
+    val isDefault: Boolean = false
+)
+
+data class TemplateBlock(
+    val id: Long = 0L,
+    val templateId: Long = 0L,
+    val title: String,
+    val blockType: BlockType = BlockType.GENERAL,
+    val startTime: LocalTime,
+    val endTime: LocalTime
+)
+
+data class DayTemplateWithBlocks(
+    val template: DayTemplate,
+    val blocks: List<TemplateBlock> = emptyList()
+)
+
+data class DailyRitual(
+    val id: Long = 0L,
+    val date: LocalDate = LocalDate.now(),
+    val top3TaskIds: List<Long> = emptyList(),
+    val focusMinutesTotal: Int = 0,
+    val eveningReflection: String? = null,
+    val completedAt: LocalDateTime? = null
+)
+
 // -----------------------------------------------------------------------------------------
 // Domain Logic Engine Result Models
 // -----------------------------------------------------------------------------------------

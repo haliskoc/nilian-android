@@ -3,12 +3,17 @@ package com.nilian.app.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.nilian.app.domain.model.BlockType
 import com.nilian.app.domain.model.ConflictItem
-import java.time.DayOfWeek
+import com.nilian.app.domain.model.DayTemplateWithBlocks
 import com.nilian.app.domain.model.Event
+import com.nilian.app.domain.model.EventCategory
 import com.nilian.app.domain.model.FreeSlotItem
+import com.nilian.app.domain.model.Goal
+import com.nilian.app.domain.model.GoalItem
 import com.nilian.app.domain.model.Habit
 import com.nilian.app.domain.model.HabitItem
+import com.nilian.app.domain.model.InboxNote
 import com.nilian.app.domain.model.Priority
 import com.nilian.app.domain.model.Task
 import com.nilian.app.domain.model.TaskItem
@@ -61,29 +66,41 @@ class TodayViewModel(
     private val _selectedDate = MutableStateFlow(LocalDate.now())
     private val _viewMode = MutableStateFlow(TodayViewMode.DAILY)
     private val _isQuickAddSheetVisible = MutableStateFlow(false)
+    private val _isBrainDumpSheetVisible = MutableStateFlow(false)
+    private val _isDayTemplatesSheetVisible = MutableStateFlow(false)
+    private val _recentNotes = MutableStateFlow<List<InboxNote>>(emptyList())
 
     val uiState: StateFlow<TodayUiState> = combine(
         _selectedDate,
         _viewMode,
         _isQuickAddSheetVisible,
+        _isBrainDumpSheetVisible,
+        _isDayTemplatesSheetVisible,
+        _recentNotes,
         taskRepository.getAllTasks(),
         eventRepository.getAllEvents(),
         habitRepository.getAllHabitsWithLogs(),
-        timeBlockRepository.getAllTimeBlocks()
+        timeBlockRepository.getAllTimeBlocks(),
+        goalRepository.getAllGoals()
     ) { params ->
         val date = params[0] as LocalDate
         val mode = params[1] as TodayViewMode
         val isQuickAddVisible = params[2] as Boolean
-        val allTasks = params[3] as List<Task>
-        val allEvents = params[4] as List<Event>
-        val allHabitsWithLogs = params[5] as List<com.nilian.app.domain.model.HabitWithLogs>
-        val allTimeBlocks = params[6] as List<TimeBlock>
+        val isBrainDumpVisible = params[3] as Boolean
+        val isDayTemplatesVisible = params[4] as Boolean
+        val recentNotesList = params[5] as List<InboxNote>
+        val allTasks = params[6] as List<Task>
+        val allEvents = params[7] as List<Event>
+        val allHabitsWithLogs = params[8] as List<com.nilian.app.domain.model.HabitWithLogs>
+        val allTimeBlocks = params[9] as List<TimeBlock>
+        val allGoals = params[10] as List<Goal>
 
         // 1. Filter tasks for today or due today / overdue
         val todayTasks = allTasks.filter { task ->
             task.dueDate == null || task.dueDate == date || (!task.isCompleted && task.dueDate.isBefore(date))
         }.map { task ->
-            task.toItem(isRollover = task.dueDate != null && task.dueDate.isBefore(date))
+            val linkedGoal = allGoals.find { it.id == task.goalId }
+            task.toItem(goalTitle = linkedGoal?.title, isRollover = task.dueDate != null && task.dueDate.isBefore(date))
         }
 
         // 2. Filter events for today
@@ -160,7 +177,14 @@ class TodayViewModel(
             nextUpProgress = 0f
         }
 
-        // 9. Calculate 7-Day summary for weekly view
+        // 9. Active milestone goals
+        val activeGoalItems = allGoals.filter { !it.isArchived }.map { g ->
+            val linkedTasks = allTasks.count { it.goalId == g.id }
+            val linkedHabits = allHabitsWithLogs.count { it.habit.goalId == g.id }
+            g.toItem(linkedTaskCount = linkedTasks, linkedHabitCount = linkedHabits)
+        }
+
+        // 10. Calculate 7-Day summary for weekly view
         val monday = date.minusDays(date.dayOfWeek.value.toLong() - 1)
         val weekSummaries = (0..6).map { offset ->
             val dayDate = monday.plusDays(offset.toLong())
@@ -179,6 +203,11 @@ class TodayViewModel(
             )
         }
 
+        val totalTaskMinutes = todayTasks.filter { !it.isCompleted }.sumOf { it.estimatedDurationMinutes }
+        val totalFreeMinutes = freeSlotItems.sumOf { it.durationMinutes }
+        val todayEventItems = todayEvents.map { it.toItem() }
+        val todayBlockItems = todayTimeBlocks.map { it.toItem() }
+
         TodayUiState(
             selectedDate = date,
             viewMode = mode,
@@ -193,7 +222,15 @@ class TodayViewModel(
             freeSlots = freeSlotItems,
             conflicts = conflictUiItems,
             weekSummaries = weekSummaries,
-            isQuickAddSheetVisible = isQuickAddVisible
+            isQuickAddSheetVisible = isQuickAddVisible,
+            isBrainDumpSheetVisible = isBrainDumpVisible,
+            isDayTemplatesSheetVisible = isDayTemplatesVisible,
+            recentNotes = recentNotesList,
+            activeGoals = activeGoalItems,
+            totalTaskMinutes = totalTaskMinutes,
+            calendarGapMinutes = totalFreeMinutes,
+            todayEvents = todayEventItems,
+            todayBlocks = todayBlockItems
         )
     }.stateIn(
         scope = viewModelScope,
@@ -205,6 +242,12 @@ class TodayViewModel(
         // Automatic deterministic rollover on application launch
         viewModelScope.launch {
             taskRolloverUseCase.execute(LocalDate.now())
+        }
+    }
+
+    fun insertCompletedTimeBlock(block: TimeBlock) {
+        viewModelScope.launch {
+            timeBlockRepository.insertTimeBlock(block)
         }
     }
 
@@ -237,12 +280,97 @@ class TodayViewModel(
         _isQuickAddSheetVisible.value = false
     }
 
+    fun onOpenBrainDump() {
+        _isQuickAddSheetVisible.value = false
+        _isBrainDumpSheetVisible.value = true
+    }
+
+    fun onDismissBrainDump() {
+        _isBrainDumpSheetVisible.value = false
+    }
+
+    fun onOpenDayTemplates() {
+        _isQuickAddSheetVisible.value = false
+        _isDayTemplatesSheetVisible.value = true
+    }
+
+    fun onDismissDayTemplates() {
+        _isDayTemplatesSheetVisible.value = false
+    }
+
+    fun onSaveBrainDumpNote(content: String, tag: String?) {
+        val newNote = InboxNote(
+            id = System.currentTimeMillis(),
+            content = content,
+            createdAt = LocalDateTime.now(),
+            tags = if (!tag.isNullOrBlank()) listOf(tag) else emptyList()
+        )
+        _recentNotes.update { listOf(newNote) + it }
+    }
+
+    fun onApplyDayTemplate(templateWithBlocks: DayTemplateWithBlocks) {
+        viewModelScope.launch {
+            val targetDate = _selectedDate.value
+            templateWithBlocks.blocks.forEach { block ->
+                timeBlockRepository.insertTimeBlock(
+                    TimeBlock(
+                        title = block.title,
+                        blockType = block.blockType,
+                        startTime = block.startTime,
+                        endTime = block.endTime,
+                        date = targetDate
+                    )
+                )
+            }
+        }
+    }
+
+    fun onConvertToTask(noteId: Long, title: String, priority: Priority, durationMinutes: Int, dueDate: LocalDate?) {
+        viewModelScope.launch {
+            taskRepository.insertTask(
+                Task(
+                    title = title,
+                    priority = priority,
+                    estimatedDurationMinutes = durationMinutes,
+                    dueDate = dueDate ?: _selectedDate.value
+                )
+            )
+            _recentNotes.update { list -> list.filter { it.id != noteId } }
+        }
+    }
+
+    fun onConvertToEvent(noteId: Long, title: String, category: EventCategory, date: LocalDate, startTime: LocalTime, endTime: LocalTime) {
+        viewModelScope.launch {
+            eventRepository.insertEvent(
+                Event(
+                    title = title,
+                    category = category,
+                    startDateTime = LocalDateTime.of(date, startTime),
+                    endDateTime = LocalDateTime.of(date, endTime)
+                )
+            )
+            _recentNotes.update { list -> list.filter { it.id != noteId } }
+        }
+    }
+
+    fun onConvertToGoal(noteId: Long, title: String, description: String?, targetDate: LocalDate?) {
+        viewModelScope.launch {
+            goalRepository.insertGoal(
+                Goal(
+                    title = title,
+                    description = description,
+                    targetDate = targetDate
+                )
+            )
+            _recentNotes.update { list -> list.filter { it.id != noteId } }
+        }
+    }
+
     fun onQuickAddOptionSelected(option: String) {
         _isQuickAddSheetVisible.value = false
-        // Quick add templates
-        viewModelScope.launch {
-            when (option) {
-                "task" -> {
+        when (option) {
+            "TASK" -> {
+                viewModelScope.launch {
                     taskRepository.insertTask(
                         Task(
                             title = "Yeni Görev",
@@ -251,19 +379,36 @@ class TodayViewModel(
                         )
                     )
                 }
-                "block" -> {
+            }
+            "BLOCK" -> {
+                viewModelScope.launch {
                     val now = LocalTime.now()
                     timeBlockRepository.insertTimeBlock(
                         TimeBlock(
                             title = "Derin Odak Seansı",
-                            blockType = com.nilian.app.domain.model.BlockType.DEEP_WORK,
+                            blockType = BlockType.DEEP_WORK,
                             startTime = now,
                             endTime = now.plusHours(1),
                             date = _selectedDate.value
                         )
                     )
                 }
-                "habit" -> {
+            }
+            "EVENT" -> {
+                viewModelScope.launch {
+                    val now = LocalTime.now()
+                    eventRepository.insertEvent(
+                        Event(
+                            title = "Yeni Etkinlik",
+                            category = EventCategory.GENERAL,
+                            startDateTime = LocalDateTime.of(_selectedDate.value, now),
+                            endDateTime = LocalDateTime.of(_selectedDate.value, now.plusHours(1))
+                        )
+                    )
+                }
+            }
+            "HABIT" -> {
+                viewModelScope.launch {
                     habitRepository.insertHabit(
                         Habit(
                             title = "Yeni Alışkanlık",
@@ -271,6 +416,12 @@ class TodayViewModel(
                         )
                     )
                 }
+            }
+            "BRAIN_DUMP" -> {
+                onOpenBrainDump()
+            }
+            "TEMPLATES" -> {
+                onOpenDayTemplates()
             }
         }
     }

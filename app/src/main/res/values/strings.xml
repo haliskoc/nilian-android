@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">Nilian</string>
     <string name="app_tagline">Personal Life Operating System</string>
+    <string name="widget_name">Nilian Bugün</string>
+    <string name="widget_description">Günün özeti, sıradaki odak bloğu, öncelikli görevler ve hızlı yakalama aracı.</string>
 </resources>

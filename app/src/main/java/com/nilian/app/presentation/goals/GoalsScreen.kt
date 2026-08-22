@@ -2,6 +2,9 @@ package com.nilian.app.presentation.goals
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +35,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -68,7 +72,10 @@ import androidx.compose.ui.unit.sp
 import com.nilian.app.core.ui.components.CalmCard
 import com.nilian.app.core.ui.components.CalmTextField
 import com.nilian.app.core.ui.components.EmptyStateWidget
+import com.nilian.app.core.ui.components.MilestoneCountdownBadge
+import com.nilian.app.core.ui.components.MilestoneCountdownCarousel
 import com.nilian.app.core.ui.components.NilianTopAppBar
+import com.nilian.app.core.ui.components.rememberMilestoneTheme
 import com.nilian.app.core.ui.theme.BottomSheetShape
 import com.nilian.app.core.ui.theme.CardShapeLarge
 import com.nilian.app.core.ui.theme.CardShapeMedium
@@ -81,6 +88,7 @@ import com.nilian.app.domain.model.TaskItem
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 data class GoalWithDetails(
     val goal: GoalItem,
@@ -118,12 +126,12 @@ fun GoalsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             NilianTopAppBar(
-                title = "Long-Term Vision",
-                subtitle = "Align daily actions with life milestones",
+                title = "Uzun Vadeli Vizyon & Hedefler",
+                subtitle = "Günlük eylemlerinizi yaşam kilometre taşlarıyla hizalayın",
                 actions = {
                     TextButton(onClick = onToggleShowArchived) {
                         Text(
-                            text = if (uiState.showArchived) "Active Goals" else "Archived",
+                            text = if (uiState.showArchived) "Aktif Hedefler" else "Arşiv",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = SagePrimary
                         )
@@ -138,7 +146,7 @@ fun GoalsScreen(
                 contentColor = Color.White,
                 shape = CircleShape
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "New Goal")
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Yeni Hedef")
             }
         }
     ) { paddingValues ->
@@ -149,14 +157,14 @@ fun GoalsScreen(
         ) {
             if (displayGoals.isEmpty()) {
                 EmptyStateWidget(
-                    title = if (uiState.showArchived) "No Archived Goals" else "No Goals Defined",
+                    title = if (uiState.showArchived) "Arşivlenmiş Hedef Yok" else "Henüz Hedef Tanımlanmadı",
                     description = if (uiState.showArchived) {
-                        "Completed or archived goals will appear here."
+                        "Tamamlanan veya arşivlenen hedefler burada görünür."
                     } else {
-                        "Set your core vision and attach tasks and habits to see steady progress."
+                        "Temel vizyonunuzu belirleyin, görev ve rutinleri bağlayarak istikrarlı ilerlemeyi görün."
                     },
                     icon = Icons.Outlined.Flag,
-                    actionLabel = if (!uiState.showArchived) "Define Goal" else null,
+                    actionLabel = if (!uiState.showArchived) "Hedef Belirle" else null,
                     onActionClick = onAddGoalClick
                 )
             } else {
@@ -165,6 +173,27 @@ fun GoalsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Top Horizon Milestone Countdowns Carousel (when active goals exist)
+                    if (!uiState.showArchived && uiState.activeGoals.isNotEmpty()) {
+                        item {
+                            MilestoneCountdownCarousel(
+                                goals = uiState.activeGoals.map { it.goal },
+                                onGoalClick = { onEditGoalClick(it) },
+                                title = "Kilometre Taşı Sayaçları",
+                                subtitle = "Yaklaşan hedeflerinize kalan günler ve ilerleme"
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+                    }
+
+                    item {
+                        Text(
+                            text = if (uiState.showArchived) "Arşivlenmiş Vizyonlar" else "Tüm Aktif Hedefler",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
                     items(displayGoals, key = { it.goal.id }) { goalDetails ->
                         GoalCardItem(
                             goalDetails = goalDetails,
@@ -202,20 +231,18 @@ private fun GoalCardItem(
     var isExpanded by remember { mutableStateOf(false) }
     var isMenuOpen by remember { mutableStateOf(false) }
     val goal = goalDetails.goal
+    val theme = rememberMilestoneTheme(title = goal.title, description = goal.description)
 
-    val daysLeftText = remember(goal.targetDate) {
-        goal.targetDate?.let { date ->
-            val days = ChronoUnit.DAYS.between(LocalDate.now(), date)
-            when {
-                days < 0 -> "${-days} days overdue"
-                days == 0L -> "Due today"
-                else -> "$days days remaining"
-            }
-        }
-    }
+    val animatedProgress by animateFloatAsState(
+        targetValue = goal.progressPercent.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "GoalProgressAnim"
+    )
 
     CalmCard(
         shape = CardShapeLarge,
+        backgroundColor = MaterialTheme.colorScheme.surface,
+        borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
         contentPadding = PaddingValues(18.dp)
     ) {
         Column(
@@ -223,80 +250,107 @@ private fun GoalCardItem(
                 .fillMaxWidth()
                 .animateContentSize()
         ) {
-            // Header
+            // Header with Theme Avatar Emoji + Title + Countdown Badge + Menu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = goal.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (!goal.description.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(theme.containerColor)
+                            .border(1.dp, theme.accentColor.copy(alpha = 0.35f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = goal.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = theme.emoji,
+                            fontSize = 20.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = goal.title,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
+
+                        if (!goal.description.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = goal.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
-                Box {
-                    IconButton(
-                        onClick = { isMenuOpen = true },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (goal.targetDate != null) {
+                        MilestoneCountdownBadge(targetDate = goal.targetDate)
                     }
 
-                    DropdownMenu(
-                        expanded = isMenuOpen,
-                        onDismissRequest = { isMenuOpen = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Edit Goal") },
-                            onClick = {
-                                isMenuOpen = false
-                                onEdit()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(if (goal.isArchived) "Unarchive" else "Archive") },
-                            onClick = {
-                                isMenuOpen = false
-                                onArchive()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp))
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                isMenuOpen = false
-                                onDelete()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                            }
-                        )
+                    Box {
+                        IconButton(
+                            onClick = { isMenuOpen = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Seçenekler",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isMenuOpen,
+                            onDismissRequest = { isMenuOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Hedefi Düzenle") },
+                                onClick = {
+                                    isMenuOpen = false
+                                    onEdit()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (goal.isArchived) "Arşivden Çıkar" else "Arşivle") },
+                                onClick = {
+                                    isMenuOpen = false
+                                    onArchive()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sil", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    isMenuOpen = false
+                                    onDelete()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -310,14 +364,15 @@ private fun GoalCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${(goal.progressPercent * 100).toInt()}% Progress",
+                    text = "${(animatedProgress * 100).toInt()}% Tamamlandı",
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = SagePrimary
+                    color = theme.accentColor
                 )
 
-                if (daysLeftText != null) {
+                if (goal.targetDate != null) {
+                    val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("tr"))
                     Text(
-                        text = daysLeftText,
+                        text = "Hedef: ${goal.targetDate.format(formatter)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -327,12 +382,12 @@ private fun GoalCardItem(
             Spacer(modifier = Modifier.height(6.dp))
 
             LinearProgressIndicator(
-                progress = { goal.progressPercent },
+                progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = SagePrimary,
+                color = theme.accentColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round
             )
@@ -355,12 +410,12 @@ private fun GoalCardItem(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "📋 ${goalDetails.linkedTasks.size} Tasks",
+                        text = "📋 ${goalDetails.linkedTasks.size} Görev",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "🔄 ${goalDetails.linkedHabits.size} Habits",
+                        text = "🔄 ${goalDetails.linkedHabits.size} Rutin",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -378,13 +433,10 @@ private fun GoalCardItem(
             if (isExpanded) {
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (goalDetails.linkedTasks.isNotEmpty()) {
                         Text(
-                            text = "Linked Tasks",
+                            text = "Bağlı Görevler:",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -392,13 +444,16 @@ private fun GoalCardItem(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                     .clickable { onTaskToggle(task) }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(18.dp)
+                                        .size(16.dp)
                                         .clip(CircleShape)
                                         .background(if (task.isCompleted) SagePrimary else Color.Transparent)
                                         .border(1.dp, if (task.isCompleted) SagePrimary else MaterialTheme.colorScheme.outline, CircleShape),
@@ -408,7 +463,6 @@ private fun GoalCardItem(
                                         Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
                                     }
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = task.title,
                                     style = MaterialTheme.typography.bodySmall,
@@ -421,7 +475,7 @@ private fun GoalCardItem(
                     if (goalDetails.linkedHabits.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Linked Habits",
+                            text = "Bağlı Rutinler:",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -429,17 +483,46 @@ private fun GoalCardItem(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                     .clickable { onHabitToggle(habit) }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(if (habit.isCompletedToday) SagePrimary else Color.Transparent)
+                                        .border(1.dp, if (habit.isCompletedToday) SagePrimary else MaterialTheme.colorScheme.outline, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (habit.isCompletedToday) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                    }
+                                }
                                 Text(
-                                    text = "🔥 ${habit.title} (${habit.currentStreak}d streak)",
+                                    text = habit.title,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = if (habit.isCompletedToday) SagePrimary else MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = "🔥 ${habit.currentStreak}g",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
+                    }
+
+                    if (goalDetails.linkedTasks.isEmpty() && goalDetails.linkedHabits.isEmpty()) {
+                        Text(
+                            text = "Henüz bu hedefe bağlı görev veya rutin bulunmuyor.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -454,13 +537,10 @@ private fun AddEditGoalModal(
     onDismiss: () -> Unit,
     onSave: (id: Long, title: String, description: String?, targetDate: LocalDate?) -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var title by remember { mutableStateOf(goal?.title.orEmpty()) }
     var description by remember { mutableStateOf(goal?.description.orEmpty()) }
-    var targetDateString by remember {
-        mutableStateOf(goal?.targetDate?.format(DateTimeFormatter.ISO_LOCAL_DATE).orEmpty())
-    }
-
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var targetDate by remember { mutableStateOf(goal?.targetDate ?: LocalDate.now().plusMonths(3)) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -475,7 +555,7 @@ private fun AddEditGoalModal(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = if (goal == null) "Define Long-Term Goal" else "Edit Goal",
+                text = if (goal == null) "Yeni Hedef Tanımla" else "Hedefi Düzenle",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -483,61 +563,83 @@ private fun AddEditGoalModal(
             CalmTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = "Goal Title",
-                placeholder = "e.g. Master Android Architecture, Run Marathon"
+                label = "Hedef Başlığı (örn: Sınavı Kazan, MVP Lansmanı)"
             )
 
             CalmTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = "Vision / Why this matters",
-                placeholder = "Describe the motivation and core outcome",
+                label = "Vizyon ve Başarı Kriterleri (İsteğe bağlı)",
                 singleLine = false,
                 maxLines = 3
             )
 
-            CalmTextField(
-                value = targetDateString,
-                onValueChange = { targetDateString = it },
-                label = "Target Date (YYYY-MM-DD, Optional)",
-                placeholder = "e.g. 2026-12-31"
-            )
+            // Quick Target Date Selection
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Hedeflenen Tarih",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val today = LocalDate.now()
+                    val dateOptions = listOf(
+                        "1 Ay" to today.plusMonths(1),
+                        "3 Ay" to today.plusMonths(3),
+                        "6 Ay" to today.plusMonths(6),
+                        "1 Yıl" to today.plusYears(1)
+                    )
+
+                    dateOptions.forEach { (label, date) ->
+                        val isSelected = targetDate == date
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(if (isSelected) SagePrimary else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { targetDate = date }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(text = "Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("İptal", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = {
                         if (title.isNotBlank()) {
-                            val parsedDate = try {
-                                if (targetDateString.isNotBlank()) LocalDate.parse(targetDateString) else null
-                            } catch (e: Exception) {
-                                null
-                            }
                             onSave(
                                 goal?.id ?: 0L,
-                                title,
-                                description.ifBlank { null },
-                                parsedDate
+                                title.trim(),
+                                description.trim().ifBlank { null },
+                                targetDate
                             )
+                            onDismiss()
                         }
                     },
+                    enabled = title.isNotBlank(),
                     shape = PillShape,
                     colors = ButtonDefaults.buttonColors(containerColor = SagePrimary)
                 ) {
-                    Text(
-                        text = if (goal == null) "Create Goal" else "Save Changes",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text("Kaydet")
                 }
             }
 
@@ -546,7 +648,11 @@ private fun AddEditGoalModal(
     }
 }
 
-@Preview(name = "Goals Dark", showBackground = true)
+// =========================================================================
+// Previews
+// =========================================================================
+
+@Preview(name = "Goals Screen Dark", showBackground = true)
 @Composable
 private fun GoalsScreenDarkPreview() {
     NilianTheme(darkTheme = true) {
@@ -556,17 +662,26 @@ private fun GoalsScreenDarkPreview() {
                     GoalWithDetails(
                         goal = GoalItem(
                             id = 1,
-                            title = "Launch Nilian Personal Life OS",
-                            description = "Full clean architecture, Room DB, Jetpack Compose, CI/CD pipeline",
-                            targetDate = LocalDate.now().plusDays(25),
-                            progressPercent = 0.72f
+                            title = "Bahar Dönemi Final Sınavları",
+                            description = "Tüm derslerden A ile mezuniyet",
+                            targetDate = LocalDate.now().plusDays(14),
+                            progressPercent = 0.65f
                         ),
                         linkedTasks = listOf(
-                            TaskItem(id = 1, title = "Compose UI Polish", isCompleted = true),
-                            TaskItem(id = 2, title = "DataStore encryption testing", isCompleted = false)
+                            TaskItem(id = 101, title = "Algoritmalar Final Soru Çözümü", isCompleted = true),
+                            TaskItem(id = 102, title = "İşletim Sistemleri Özet Notları", isCompleted = false)
                         ),
                         linkedHabits = listOf(
-                            HabitItem(id = 1, title = "Daily 2h Deep Work", currentStreak = 14)
+                            HabitItem(id = 201, title = "Günde 2 saat odaklı ders", currentStreak = 8, isCompletedToday = true)
+                        )
+                    ),
+                    GoalWithDetails(
+                        goal = GoalItem(
+                            id = 2,
+                            title = "Nilian 1.0 Lansmanı",
+                            description = "Jetpack Compose ve Room tabanlı mimari teslimi",
+                            targetDate = LocalDate.now().plusDays(30),
+                            progressPercent = 0.80f
                         )
                     )
                 )

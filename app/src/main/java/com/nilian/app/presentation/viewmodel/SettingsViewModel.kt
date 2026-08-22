@@ -137,6 +137,25 @@ class SettingsViewModel(
         }
     }
 
+    fun onExportLanSync(deviceId: String, deviceName: String, onPayloadReady: ((String) -> Unit)? = null) {
+        viewModelScope.launch {
+            val json = jsonBackupRestoreUseCase.createBackupJson()
+            _backupSuccessMessage.value = "LAN Senkronizasyon paketi oluşturuldu ($deviceName)."
+            onPayloadReady?.invoke(json)
+        }
+    }
+
+    fun onImportLanSync(payloadJson: String) {
+        viewModelScope.launch {
+            val result = jsonBackupRestoreUseCase.restoreBackupJson(payloadJson, replaceExisting = false)
+            if (result.success) {
+                _backupSuccessMessage.value = "Yerel ağ senkronizasyonu tamamlandı: ${result.tasksCount} görev, ${result.eventsCount} etkinlik birleştirildi."
+            } else {
+                _backupSuccessMessage.value = "Senkronizasyon hatası: ${result.errorMessage}"
+            }
+        }
+    }
+
     fun onClearDataClick() {
         _isClearDataDialogVisible.value = true
     }

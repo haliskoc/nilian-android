@@ -36,13 +36,16 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -82,9 +85,11 @@ import com.nilian.app.core.ui.components.CalmCard
 import com.nilian.app.core.ui.components.CircularDayProgress
 import com.nilian.app.core.ui.components.ConflictAlertBanner
 import com.nilian.app.core.ui.components.EmptyStateWidget
+import com.nilian.app.core.ui.components.MilestoneCountdownCarousel
 import com.nilian.app.core.ui.components.NilianTopAppBar
 import com.nilian.app.core.ui.components.PriorityBadge
 import com.nilian.app.core.ui.components.StreakFlameBadge
+import com.nilian.app.core.ui.components.TimeBudgetBanner
 import com.nilian.app.core.ui.theme.BottomSheetShape
 import com.nilian.app.core.ui.theme.CardShapeLarge
 import com.nilian.app.core.ui.theme.CardShapeMedium
@@ -94,13 +99,22 @@ import com.nilian.app.core.ui.theme.SagePrimary
 import com.nilian.app.core.ui.theme.extendedColors
 import com.nilian.app.domain.model.BlockType
 import com.nilian.app.domain.model.ConflictItem
+import com.nilian.app.domain.model.DayTemplateWithBlocks
 import com.nilian.app.domain.model.EventCategory
 import com.nilian.app.domain.model.EventItem
 import com.nilian.app.domain.model.FreeSlotItem
+import com.nilian.app.domain.model.GoalItem
 import com.nilian.app.domain.model.HabitItem
+import com.nilian.app.domain.model.InboxNote
 import com.nilian.app.domain.model.Priority
 import com.nilian.app.domain.model.TaskItem
+import com.nilian.app.domain.model.TimeBlock
 import com.nilian.app.domain.model.TimeBlockItem
+import com.nilian.app.presentation.focus.FocusTimerScreen
+import com.nilian.app.presentation.inbox.BrainDumpBottomSheet
+import com.nilian.app.presentation.rituals.EveningCloseoutDialog
+import com.nilian.app.presentation.rituals.MorningKickoffDialog
+import com.nilian.app.presentation.templates.DayTemplatesBottomSheet
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -133,7 +147,15 @@ data class TodayUiState(
     val freeSlots: List<FreeSlotItem> = emptyList(),
     val conflicts: List<ConflictItem> = emptyList(),
     val weekSummaries: List<DaySummary> = emptyList(),
-    val isQuickAddSheetVisible: Boolean = false
+    val isQuickAddSheetVisible: Boolean = false,
+    val isBrainDumpSheetVisible: Boolean = false,
+    val isDayTemplatesSheetVisible: Boolean = false,
+    val recentNotes: List<InboxNote> = emptyList(),
+    val activeGoals: List<GoalItem> = emptyList(),
+    val totalTaskMinutes: Int = 0,
+    val calendarGapMinutes: Int = 0,
+    val todayEvents: List<EventItem> = emptyList(),
+    val todayBlocks: List<TimeBlockItem> = emptyList()
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -149,10 +171,26 @@ fun TodayScreen(
     onConflictReviewClick: (ConflictItem) -> Unit,
     onFreeSlotClick: (FreeSlotItem) -> Unit,
     onTaskClick: (TaskItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onGoalClick: (GoalItem) -> Unit = {},
+    onBrainDumpClick: () -> Unit = {},
+    onDayTemplatesClick: () -> Unit = {},
+    onDismissBrainDump: () -> Unit = {},
+    onDismissDayTemplates: () -> Unit = {},
+    onSaveBrainDumpNote: (String, String?) -> Unit = { _, _ -> },
+    onApplyDayTemplate: (DayTemplateWithBlocks) -> Unit = {},
+    onConvertToTask: (Long, String, Priority, Int, LocalDate?) -> Unit = { _, _, _, _, _ -> },
+    onConvertToEvent: (Long, String, EventCategory, LocalDate, LocalTime, LocalTime) -> Unit = { _, _, _, _, _, _ -> },
+    onConvertToGoal: (Long, String, String?, LocalDate?) -> Unit = { _, _, _, _ -> },
+    onFocusSessionCompleted: (TimeBlock) -> Unit = {}
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM")
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var showMorningKickoff by remember { mutableStateOf(false) }
+    var showEveningCloseout by remember { mutableStateOf(false) }
+    var showFocusTimer by remember { mutableStateOf(false) }
+    var activeFocusTask by remember { mutableStateOf<TaskItem?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -160,7 +198,7 @@ fun TodayScreen(
         topBar = {
             NilianTopAppBar(
                 title = uiState.selectedDate.format(dateFormatter),
-                subtitle = "Workload: ${uiState.workloadScoreHours} hrs • ${uiState.workloadStatus}",
+                subtitle = "İş Yükü: ${uiState.workloadScoreHours} sa • ${uiState.workloadStatus}",
                 actions = {
                     // View Toggle Tabs (Daily / Weekly)
                     Row(
@@ -180,7 +218,7 @@ fun TodayScreen(
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = "Daily",
+                                text = "Günlük",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold
                                 ),
@@ -197,7 +235,7 @@ fun TodayScreen(
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = "Weekly",
+                                text = "Haftalık",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold
                                 ),
@@ -215,7 +253,7 @@ fun TodayScreen(
                 contentColor = Color.White,
                 shape = CircleShape
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Quick Add")
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Hızlı Ekle")
             }
         }
     ) { paddingValues ->
@@ -232,7 +270,16 @@ fun TodayScreen(
                         onHabitToggle = onHabitToggle,
                         onConflictReviewClick = onConflictReviewClick,
                         onFreeSlotClick = onFreeSlotClick,
-                        onTaskClick = onTaskClick
+                        onTaskClick = onTaskClick,
+                        onGoalClick = onGoalClick,
+                        onBrainDumpClick = onBrainDumpClick,
+                        onDayTemplatesClick = onDayTemplatesClick,
+                        onStartMorningKickoff = { showMorningKickoff = true },
+                        onStartEveningCloseout = { showEveningCloseout = true },
+                        onStartFocus = { task ->
+                            activeFocusTask = task
+                            showFocusTimer = true
+                        }
                     )
                 }
                 TodayViewMode.WEEKLY -> {
@@ -243,6 +290,49 @@ fun TodayScreen(
                 }
             }
         }
+    }
+
+    // Morning Kickoff Dialog
+    if (showMorningKickoff) {
+        MorningKickoffDialog(
+            tasks = uiState.tasks,
+            todayEvents = uiState.todayEvents,
+            todayBlocks = uiState.todayBlocks,
+            onDismiss = { showMorningKickoff = false },
+            onStartDay = { _ ->
+                showMorningKickoff = false
+            }
+        )
+    }
+
+    // Evening Closeout Dialog
+    if (showEveningCloseout) {
+        EveningCloseoutDialog(
+            tasks = uiState.tasks,
+            habits = uiState.habits,
+            focusBlocks = uiState.todayBlocks,
+            onDismiss = { showEveningCloseout = false },
+            onConfirmCloseout = { _ ->
+                showEveningCloseout = false
+            }
+        )
+    }
+
+    // Fullscreen Focus Timer Overlay
+    if (showFocusTimer) {
+        FocusTimerScreen(
+            initialTaskTitle = activeFocusTask?.title,
+            initialTaskId = activeFocusTask?.id,
+            onClose = {
+                showFocusTimer = false
+                activeFocusTask = null
+            },
+            onSessionCompleted = { completedBlock ->
+                onFocusSessionCompleted(completedBlock)
+                showFocusTimer = false
+                activeFocusTask = null
+            }
+        )
     }
 
     // Quick Add Bottom Sheet
@@ -260,12 +350,12 @@ fun TodayScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Quick Add to Nilian",
+                    text = "Nilian'a Hızlı Ekle",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Capture tasks, blocks, or habits effortlessly.",
+                    text = "Görevleri, odak bloklarını veya zihin boşaltma notlarını anında yakalayın.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -273,26 +363,38 @@ fun TodayScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 QuickAddOptionItem(
-                    title = "New Task",
-                    description = "Prioritized action item with duration",
+                    title = "🧠 Zihin Boşaltma (Brain Dump)",
+                    description = "Sıfır sürtünmeyle fikir, not ve görev yakala",
+                    icon = Icons.Outlined.Psychology,
+                    onClick = { onQuickAddOptionSelected("BRAIN_DUMP") }
+                )
+                QuickAddOptionItem(
+                    title = "✨ Gün Şablonu Uygula",
+                    description = "Sınav, Derin Kodlama veya Dinlenme akışını aktar",
+                    icon = Icons.Outlined.AutoAwesome,
+                    onClick = { onQuickAddOptionSelected("TEMPLATES") }
+                )
+                QuickAddOptionItem(
+                    title = "Yeni Görev",
+                    description = "Öncelikli eylem maddesi ve süre tahmini",
                     icon = Icons.Default.TaskAlt,
                     onClick = { onQuickAddOptionSelected("TASK") }
                 )
                 QuickAddOptionItem(
-                    title = "Time Block / Focus Session",
-                    description = "Reserve a focus slot on your 24h timeline",
+                    title = "Zaman Bloğu / Odak Seansı",
+                    description = "24 saatlik zaman çizelgenizde odak slotu ayırın",
                     icon = Icons.Outlined.Schedule,
                     onClick = { onQuickAddOptionSelected("BLOCK") }
                 )
                 QuickAddOptionItem(
-                    title = "Calendar Event",
-                    description = "Lecture, meeting, or personal appointment",
+                    title = "Takvim Etkinliği",
+                    description = "Ders, toplantı veya randevu",
                     icon = Icons.Outlined.Event,
                     onClick = { onQuickAddOptionSelected("EVENT") }
                 )
                 QuickAddOptionItem(
-                    title = "Habit Tracker",
-                    description = "Track daily ritual with streak count",
+                    title = "Alışkanlık / Rutin",
+                    description = "Seri takibiyle günlük ritüel başlat",
                     icon = Icons.Outlined.SelfImprovement,
                     onClick = { onQuickAddOptionSelected("HABIT") }
                 )
@@ -300,6 +402,33 @@ fun TodayScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+
+    // Brain Dump Bottom Sheet
+    if (uiState.isBrainDumpSheetVisible) {
+        BrainDumpBottomSheet(
+            onDismiss = onDismissBrainDump,
+            onSaveNote = onSaveBrainDumpNote,
+            onConvertToTask = { note ->
+                onConvertToTask(note.id, note.content, Priority.MEDIUM, 30, LocalDate.now())
+            },
+            onConvertToEvent = { note ->
+                val now = LocalTime.now()
+                onConvertToEvent(note.id, note.content, EventCategory.GENERAL, LocalDate.now(), now, now.plusHours(1))
+            },
+            onConvertToGoal = { note ->
+                onConvertToGoal(note.id, note.content, null, LocalDate.now().plusMonths(3))
+            },
+            recentNotes = uiState.recentNotes
+        )
+    }
+
+    // Day Templates Bottom Sheet
+    if (uiState.isDayTemplatesSheetVisible) {
+        DayTemplatesBottomSheet(
+            onDismiss = onDismissDayTemplates,
+            onApplyTemplate = onApplyDayTemplate
+        )
     }
 }
 
@@ -310,7 +439,13 @@ private fun DailyDashboardContent(
     onHabitToggle: (HabitItem) -> Unit,
     onConflictReviewClick: (ConflictItem) -> Unit,
     onFreeSlotClick: (FreeSlotItem) -> Unit,
-    onTaskClick: (TaskItem) -> Unit
+    onTaskClick: (TaskItem) -> Unit,
+    onGoalClick: (GoalItem) -> Unit,
+    onBrainDumpClick: () -> Unit,
+    onDayTemplatesClick: () -> Unit,
+    onStartMorningKickoff: () -> Unit = {},
+    onStartEveningCloseout: () -> Unit = {},
+    onStartFocus: (TaskItem?) -> Unit = {}
 ) {
     val completedTaskCount = uiState.tasks.count { it.isCompleted }
     val totalTaskCount = uiState.tasks.size
@@ -319,15 +454,15 @@ private fun DailyDashboardContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 1. Conflict Warning Banner (if any)
         if (uiState.conflicts.isNotEmpty()) {
             item {
                 val conflict = uiState.conflicts.first()
                 ConflictAlertBanner(
-                    title = "Overlap Detected (${uiState.conflicts.size})",
-                    message = "${conflict.titleA} conflicts with ${conflict.titleB} (${conflict.timeDescription})",
+                    title = "Çakışma Tespit Edildi (${uiState.conflicts.size})",
+                    message = "${conflict.titleA} ile ${conflict.titleB} çakışıyor (${conflict.timeDescription})",
                     onActionClick = { onConflictReviewClick(conflict) }
                 )
             }
@@ -351,7 +486,8 @@ private fun DailyDashboardContent(
                         completedCount = completedTaskCount,
                         totalCount = totalTaskCount,
                         size = 92.dp,
-                        strokeWidth = 7.dp
+                        strokeWidth = 7.dp,
+                        label = "Görev"
                     )
 
                     Spacer(modifier = Modifier.width(16.dp))
@@ -369,7 +505,7 @@ private fun DailyDashboardContent(
                                     .background(SagePrimary)
                             )
                             Text(
-                                text = "NEXT UP",
+                                text = "SIRADAKİ ODAK",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
@@ -382,7 +518,7 @@ private fun DailyDashboardContent(
 
                         val nextUpTitle = uiState.nextUpBlock?.title
                             ?: uiState.nextUpEvent?.title
-                            ?: "No immediate scheduled block"
+                            ?: "Planlı acil blok bulunmuyor"
 
                         Text(
                             text = nextUpTitle,
@@ -395,9 +531,9 @@ private fun DailyDashboardContent(
                         Spacer(modifier = Modifier.height(2.dp))
 
                         val timeText = if (uiState.nextUpBlock != null) {
-                            "${uiState.nextUpBlock.startTime} - ${uiState.nextUpBlock.endTime} (${uiState.nextUpRemainingMinutes}m left)"
+                            "${uiState.nextUpBlock.startTime} - ${uiState.nextUpBlock.endTime} (${uiState.nextUpRemainingMinutes}dk kaldı)"
                         } else {
-                            "Free time until next planned session"
+                            "Serbest çalışma veya dinlenme vakti"
                         }
 
                         Text(
@@ -423,7 +559,101 @@ private fun DailyDashboardContent(
             }
         }
 
-        // 3. Quick Habit Checkboxes Row
+        // 3. Quick Action Tools Row (Brain Dump & Day Templates)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Brain Dump Action Card
+                CalmCard(
+                    modifier = Modifier.weight(1f),
+                    shape = CardShapeMedium,
+                    backgroundColor = MaterialTheme.colorScheme.surface,
+                    borderColor = SagePrimary.copy(alpha = 0.4f),
+                    onClick = onBrainDumpClick,
+                    contentPadding = PaddingValues(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(SagePrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "🧠", fontSize = 16.sp)
+                        }
+                        Column {
+                            Text(
+                                text = "Zihin Boşalt",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Hızlı Fikir Yakala",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Day Templates Action Card
+                CalmCard(
+                    modifier = Modifier.weight(1f),
+                    shape = CardShapeMedium,
+                    backgroundColor = MaterialTheme.colorScheme.surface,
+                    borderColor = SagePrimary.copy(alpha = 0.4f),
+                    onClick = onDayTemplatesClick,
+                    contentPadding = PaddingValues(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF6366F1).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "✨", fontSize = 16.sp)
+                        }
+                        Column {
+                            Text(
+                                text = "Gün Şablonları",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tek Dokunuşla Uygula",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Milestone Countdowns Horizon (Goals countdown badges & cards)
+        if (uiState.activeGoals.isNotEmpty()) {
+            item {
+                MilestoneCountdownCarousel(
+                    goals = uiState.activeGoals,
+                    onGoalClick = onGoalClick,
+                    title = "Kilometre Taşı Sayaçları",
+                    subtitle = "Hedeflerinize kalan süre ve ilerleme durumu"
+                )
+            }
+        }
+
+        // 5. Quick Habit Checkboxes Row
         if (uiState.habits.isNotEmpty()) {
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -433,12 +663,12 @@ private fun DailyDashboardContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Daily Rituals",
+                            text = "Günlük Ritüeller & Alışkanlıklar",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${uiState.habits.count { it.isCompletedToday }}/${uiState.habits.size} done",
+                            text = "${uiState.habits.count { it.isCompletedToday }}/${uiState.habits.size} tamam",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -461,7 +691,7 @@ private fun DailyDashboardContent(
             }
         }
 
-        // 4. Free Time Gap Suggestions
+        // 6. Free Time Gap Suggestions
         if (uiState.freeSlots.isNotEmpty()) {
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -476,7 +706,7 @@ private fun DailyDashboardContent(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "Mindful Focus Slots",
+                            text = "Farkındalık & Boş Zaman Pencereleri",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -504,7 +734,7 @@ private fun DailyDashboardContent(
                                     )
                                     Column {
                                         Text(
-                                            text = "${slot.durationMinutes}m Free Window",
+                                            text = "${slot.durationMinutes}dk Boş Aralık",
                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
@@ -522,7 +752,7 @@ private fun DailyDashboardContent(
             }
         }
 
-        // 5. Today's Priority Task List
+        // 7. Today's Priority Task List
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -530,12 +760,12 @@ private fun DailyDashboardContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Today's Tasks",
+                    text = "Bugünün Görevleri",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "${uiState.tasks.count { !it.isCompleted }} open",
+                    text = "${uiState.tasks.count { !it.isCompleted }} açık",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -545,8 +775,8 @@ private fun DailyDashboardContent(
         if (uiState.tasks.isEmpty()) {
             item {
                 EmptyStateWidget(
-                    title = "Clear Mind, Clear Day",
-                    description = "No pending tasks for today. Add what matters most or rest guilt-free.",
+                    title = "Zihnin Sakin ve Günün Berrak",
+                    description = "Bugün için bekleyen görev yok. Yeni bir eylem ekleyin veya dinlenin.",
                     icon = Icons.Outlined.CheckCircle
                 )
             }
@@ -567,7 +797,6 @@ private fun HabitPillItem(
     habit: HabitItem,
     onToggle: () -> Unit
 ) {
-    val extended = MaterialTheme.extendedColors
     val isCompleted = habit.isCompletedToday
 
     Row(
@@ -601,7 +830,7 @@ private fun HabitPillItem(
             if (isCompleted) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Done",
+                    contentDescription = "Tamamlandı",
                     tint = Color.White,
                     modifier = Modifier.size(14.dp)
                 )
@@ -655,7 +884,7 @@ private fun TodayTaskRowItem(
                 if (task.isCompleted) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Completed",
+                        contentDescription = "Tamamlandı",
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
@@ -685,13 +914,13 @@ private fun TodayTaskRowItem(
                 ) {
                     if (task.isRollover) {
                         Text(
-                            text = "⏳ Rollover",
+                            text = "⏳ Devreden",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.extendedColors.warning
                         )
                     }
                     Text(
-                        text = "${task.estimatedDurationMinutes}m",
+                        text = "${task.estimatedDurationMinutes}dk",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -724,13 +953,13 @@ private fun WeeklyOverviewContent(
     ) {
         item {
             Text(
-                text = "7-Day Rhythm & Balance",
+                text = "7 Günlük Ritim & Denge",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Overview of task completion and energy distribution.",
+                text = "Görev tamamlama oranları ve günlük enerji dağılımı.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -768,7 +997,7 @@ private fun WeeklyOverviewContent(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "TODAY",
+                                        text = "BUGÜN",
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         color = SagePrimary
                                     )
@@ -779,7 +1008,7 @@ private fun WeeklyOverviewContent(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "${day.eventCount} planned sessions",
+                            text = "${day.eventCount} planlı oturum",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

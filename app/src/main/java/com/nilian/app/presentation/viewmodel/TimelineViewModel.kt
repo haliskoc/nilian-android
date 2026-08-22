@@ -142,6 +142,23 @@ class TimelineViewModel(
         }
     }
 
+    fun onApplyDayTemplate(templateWithBlocks: com.nilian.app.domain.model.DayTemplateWithBlocks) {
+        viewModelScope.launch {
+            val date = _selectedDate.value
+            templateWithBlocks.blocks.forEach { block ->
+                timeBlockRepository.insertTimeBlock(
+                    TimeBlock(
+                        title = block.title,
+                        blockType = block.blockType,
+                        startTime = block.startTime,
+                        endTime = block.endTime,
+                        date = date
+                    )
+                )
+            }
+        }
+    }
+
     class Factory(
         private val timeBlockRepository: TimeBlockRepository,
         private val eventRepository: EventRepository

@@ -110,4 +110,33 @@ class Converters {
             }
             .toSet()
     }
+
+    // --- List<String> (Tags) ---
+    @TypeConverter
+    fun fromStringList(list: List<String>?): String? {
+        return list?.joinToString(separator = ",")
+    }
+
+    @TypeConverter
+    fun toStringList(value: String?): List<String>? {
+        if (value == null) return null
+        if (value.isBlank()) return emptyList()
+        return value.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    }
+
+    // --- List<Long> (Task IDs) ---
+    @TypeConverter
+    fun fromLongList(list: List<Long>?): String? {
+        return list?.joinToString(separator = ",")
+    }
+
+    @TypeConverter
+    fun toLongList(value: String?): List<Long>? {
+        if (value == null) return null
+        if (value.isBlank()) return emptyList()
+        return value.split(",")
+            .mapNotNull { it.trim().toLongOrNull() }
+    }
 }
