@@ -51,6 +51,17 @@ class BrainDumpUseCase(
     }
 
     /**
+     * Parses multi-line freeform brain dump text into a list of strongly-typed Tasks.
+     */
+    fun parseBrainDump(rawInput: String, defaultDate: LocalDate = LocalDate.now()): List<Task> {
+        val lines = rawInput.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        return lines.map { line ->
+            val note = InboxNote(id = 0L, content = line, createdAt = LocalDateTime.now(), isArchived = false, tags = emptyList())
+            convertToTask(note, defaultDate)
+        }
+    }
+
+    /**
      * Deterministic classification parser for raw text.
      */
     fun parseNote(rawText: String, defaultDate: LocalDate = LocalDate.now()): BrainDumpParsedNote {

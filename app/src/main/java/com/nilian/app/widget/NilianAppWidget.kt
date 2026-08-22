@@ -176,7 +176,7 @@ private fun WidgetScaffold(
             .background(ColorProvider(WidgetBackground))
             .cornerRadius(20.dp)
             .padding(14.dp)
-            .clickable(actionStartActivity(launchAppIntent))
+            .clickable(actionStartActivity(android.content.ComponentName(context, MainActivity::class.java)))
     ) {
         // --- Header: App Brand + Date + Progress Ring ---
         Row(
@@ -328,7 +328,7 @@ private fun WidgetScaffold(
         ) {
             Button(
                 text = "⚡ Brain Dump",
-                onClick = actionStartActivity(launchQuickCaptureIntent),
+                onClick = actionStartActivity(android.content.ComponentName(context, MainActivity::class.java)),
                 colors = ButtonDefaults.buttonColors(
                     backgroundColor = ColorProvider(SageAccent),
                     contentColor = ColorProvider(Color.White)
@@ -340,10 +340,10 @@ private fun WidgetScaffold(
 
             Button(
                 text = "⏱️ Odaklan",
-                onClick = actionStartActivity(launchFocusTimerIntent),
+                onClick = actionStartActivity(android.content.ComponentName(context, MainActivity::class.java)),
                 colors = ButtonDefaults.buttonColors(
                     backgroundColor = ColorProvider(WidgetCardBorder),
-                    contentColor = ColorProvider(TextPrimary)
+                    contentColor = ColorProvider(Color.White)
                 ),
                 modifier = GlanceModifier.defaultWeight().height(36.dp)
             )

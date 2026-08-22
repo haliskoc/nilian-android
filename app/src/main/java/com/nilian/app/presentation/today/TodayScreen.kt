@@ -322,13 +322,7 @@ fun TodayScreen(
     if (showFocusTimer) {
         FocusTimerScreen(
             initialTaskTitle = activeFocusTask?.title,
-            initialTaskId = activeFocusTask?.id,
-            onClose = {
-                showFocusTimer = false
-                activeFocusTask = null
-            },
-            onSessionCompleted = { completedBlock ->
-                onFocusSessionCompleted(completedBlock)
+            onBackClick = {
                 showFocusTimer = false
                 activeFocusTask = null
             }

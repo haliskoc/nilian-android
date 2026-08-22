@@ -47,7 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nilian.app.core.ui.theme.AmberAccent
+import com.nilian.app.core.ui.theme.AmberSecondary
 import com.nilian.app.core.ui.theme.SagePrimary
 import com.nilian.app.domain.model.Priority
 import com.nilian.app.domain.model.Task
@@ -61,7 +61,7 @@ fun InboxScreen(
 ) {
     var rawText by remember { mutableStateOf("") }
     val brainDumpUseCase = remember { BrainDumpUseCase() }
-    val parsedTasks = remember(rawText) {
+    val parsedTasks: List<Task> = remember(rawText) {
         brainDumpUseCase.parseBrainDump(rawText)
     }
 
@@ -225,7 +225,7 @@ fun InboxScreen(
                                     Text(
                                         text = task.priority.name,
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = if (task.priority == Priority.HIGH) AmberAccent else SagePrimary
+                                        color = if (task.priority == Priority.HIGH) AmberSecondary else SagePrimary
                                     )
                                     // Duration Pill
                                     Text(
