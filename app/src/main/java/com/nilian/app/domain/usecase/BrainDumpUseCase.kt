@@ -76,7 +76,7 @@ class BrainDumpUseCase(
         val lower = cleanText.lowercase(Locale.ROOT)
 
         // 1. Extract Tags (#tag)
-        val tagRegex = Regex("""#(\w+)""")
+        val tagRegex = Regex("""#([a-zA-Z0-9_çğıöşüÇĞİÖŞÜ]+)""")
         val tags = tagRegex.findAll(cleanText).map { it.groupValues[1] }.toList()
 
         // 2. Extract Priority (!high, !yüksek, !acil, !medium, !orta, !low, !düşük)
@@ -164,11 +164,11 @@ class BrainDumpUseCase(
     fun sanitizeTitle(content: String): String {
         return content
             .replace(Regex("""![a-zA-ZçğıöşüÇĞİÖŞÜ]+"""), "") // remove priority flags
-            .replace(Regex("""#\w+"""), "") // remove hashtag tokens
+            .replace(Regex("""#[a-zA-Z0-9_çğıöşüÇĞİÖŞÜ]+"""), "") // remove hashtag tokens
             .replace(Regex("""\(\d+[a-zA-Z]+\)"""), "") // remove (45m), (90dk)
             .replace(Regex("""\b\d+\s*(?:dk|min|dakika|m|saat|sa|h|hour)\b"""), "") // remove 45dk, 90min
             .replace(Regex("""\b(?:saat\s+|@)\d{1,2}[:.]\d{2}\b"""), "") // remove saat 14:30, @15:00
-            .replace(Regex("""@\w+"""), "") // remove @today, @tomorrow
+            .replace(Regex("""@[a-zA-Z0-9_çğıöşüÇĞİÖŞÜ]+"""), "") // remove @today, @tomorrow
             .replace(Regex("""^-\s*\[\s*\]\s*"""), "") // remove checklist prefix
             .replace(Regex("""^\[\s*\]\s*"""), "") // remove bracket prefix
             .replace(Regex("""^\*\s*"""), "") // remove bullet prefix
