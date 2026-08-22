@@ -182,9 +182,11 @@ fun MilestoneCountdownCard(
         label = "MilestoneProgressAnim"
     )
 
-    val (badgeText, badgeBg, badgeColor) = remember(daysRemaining) {
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val (badgeText, badgeBg, badgeColor) = remember(daysRemaining, extended, theme, surfaceVariant, onSurfaceVariant) {
         when {
-            daysRemaining == null -> Triple("Süresiz Hedef", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+            daysRemaining == null -> Triple("Süresiz Hedef", surfaceVariant, onSurfaceVariant)
             daysRemaining < 0 -> Triple("${-daysRemaining} gün gecikti", extended.conflictContainer, extended.conflict)
             daysRemaining == 0L -> Triple("Son Gün: Bugün!", extended.flameBackground, extended.flameGradientStart)
             daysRemaining == 1L -> Triple("Yarın son gün", extended.warningContainer, extended.warning)

@@ -60,6 +60,8 @@ import com.nilian.app.core.ui.theme.AmberSecondary
 import com.nilian.app.core.ui.theme.CardShapeMedium
 import com.nilian.app.core.ui.theme.NilianTheme
 import com.nilian.app.core.ui.theme.PillShape
+import com.nilian.app.core.ui.theme.PriorityLowContainer
+import com.nilian.app.core.ui.theme.PriorityMediumContainer
 import com.nilian.app.core.ui.theme.SagePrimary
 import com.nilian.app.core.ui.theme.extendedColors
 import java.util.Locale
@@ -125,9 +127,9 @@ fun TimeBudgetBanner(
 
     val containerBgColor by animateColorAsState(
         targetValue = if (isOverAllocated) {
-            extended.priorityMediumContainer.copy(alpha = 0.35f)
+            PriorityMediumContainer.copy(alpha = 0.35f)
         } else {
-            extended.priorityLowContainer.copy(alpha = 0.35f)
+            PriorityLowContainer.copy(alpha = 0.35f)
         },
         animationSpec = tween(durationMillis = 400),
         label = "TimeBudgetBg"
