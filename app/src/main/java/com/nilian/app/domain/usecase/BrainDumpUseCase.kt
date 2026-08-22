@@ -56,7 +56,14 @@ class BrainDumpUseCase(
     fun parseBrainDump(rawInput: String, defaultDate: LocalDate = LocalDate.now()): List<Task> {
         val lines = rawInput.lines().map { it.trim() }.filter { it.isNotEmpty() }
         return lines.map { line ->
-            val note = InboxNote(id = 0L, content = line, createdAt = LocalDateTime.now(), isArchived = false, tags = emptyList())
+            val parsed = parseNote(line, defaultDate)
+            val note = InboxNote(
+                id = 0L,
+                content = line,
+                createdAt = LocalDateTime.now(),
+                isArchived = false,
+                tags = parsed.tags
+            )
             convertToTask(note, defaultDate)
         }
     }
@@ -158,8 +165,15 @@ class BrainDumpUseCase(
         return content
             .replace(Regex("""![a-zA-ZçğıöşüÇĞİÖŞÜ]+"""), "") // remove priority flags
             .replace(Regex("""#\w+"""), "") // remove hashtag tokens
+            .replace(Regex("""\(\d+[a-zA-Z]+\)"""), "") // remove (45m), (90dk)
+            .replace(Regex("""\b\d+\s*(?:dk|min|dakika|m|saat|sa|h|hour)\b"""), "") // remove 45dk, 90min
+            .replace(Regex("""\b(?:saat\s+|@)\d{1,2}[:.]\d{2}\b"""), "") // remove saat 14:30, @15:00
+            .replace(Regex("""@\w+"""), "") // remove @today, @tomorrow
             .replace(Regex("""^-\s*\[\s*\]\s*"""), "") // remove checklist prefix
+            .replace(Regex("""^\[\s*\]\s*"""), "") // remove bracket prefix
             .replace(Regex("""^\*\s*"""), "") // remove bullet prefix
+            .replace(Regex("""^-\s*"""), "") // remove dash bullet
+            .replace(Regex("""^\d+\.\s*"""), "") // remove numbered list prefix
             .replace(Regex("""\s+"""), " ") // normalize spacing
             .trim()
             .ifEmpty { "Yeni Öğe" }
@@ -180,7 +194,11 @@ class BrainDumpUseCase(
         return Task(
             id = 0L,
             title = parsed.cleanTitle,
-            description = if (note.tags.isNotEmpty()) "Etiketler: ${note.tags.joinToString()}" else null,
+            description = when {
+                note.tags.size == 1 -> "Etiket: #${note.tags.first()}"
+                note.tags.size > 1 -> "Etiketler: ${note.tags.joinToString { "#$it" }}"
+                else -> null
+            },
             priority = priority,
             estimatedDurationMinutes = duration,
             dueDate = dueDate,

@@ -51,7 +51,7 @@ class RitualEngineUseCase {
         // 3. Select Top 3 focus tasks (sorted by High Priority first, then uncompleted, then duration)
         val top3 = activeTasks.filter { !it.isCompleted }
             .sortedWith(
-                compareBy<Task> { it.priority.ordinal }
+                compareByDescending<Task> { it.priority.ordinal }
                     .thenByDescending { it.estimatedDurationMinutes }
             )
             .take(3)
