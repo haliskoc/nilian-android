@@ -1,21 +1,25 @@
 package com.nilian.app.presentation.viewmodel
 
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nilian.app.core.datastore.SecurityPreferences
+import com.nilian.app.core.security.BiometricAuthManager
 import com.nilian.app.domain.model.ThemeMode
 import com.nilian.app.presentation.lock.LockUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class MainViewModel(
-    private val securityPreferences: SecurityPreferences
+    private val securityPreferences: SecurityPreferences,
+    private val biometricAuthManager: BiometricAuthManager
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = securityPreferences.themeMode
@@ -41,6 +45,21 @@ class MainViewModel(
                 _isUnlocked.value = true
             }
         }
+
+        viewModelScope.launch {
+            securityPreferences.pinLength.collect { length ->
+                _lockUiState.update { it.copy(pinLength = length) }
+            }
+        }
+
+        viewModelScope.launch {
+            securityPreferences.biometricsEnabled.collect { isEnabled ->
+                val availability = biometricAuthManager.checkBiometricAvailability()
+                _lockUiState.update {
+                    it.copy(isBiometricsAvailable = isEnabled && availability.isAvailable)
+                }
+            }
+        }
     }
 
     fun onDigitClick(digit: Char) {
@@ -62,10 +81,33 @@ class MainViewModel(
         }
     }
 
-    fun onBiometricsClick() {
-        // Biometrics verification unlocks the app
-        _isUnlocked.value = true
-        _lockUiState.update { it.copy(currentPin = "", errorMessage = null) }
+    fun onBiometricsClick(activity: FragmentActivity) {
+        val availability = biometricAuthManager.checkBiometricAvailability()
+        if (!availability.isAvailable) {
+            _lockUiState.update { it.copy(errorMessage = availability.message) }
+            return
+        }
+
+        biometricAuthManager.authenticate(
+            activity = activity,
+            title = "Nilian Giriş",
+            subtitle = "Parmak İzi veya Yüz Tanıma ile kilidi açın",
+            negativeButtonText = "PIN ile Gir",
+            onSuccess = {
+                failedAttempts = 0
+                _isUnlocked.value = true
+                _lockUiState.update { it.copy(currentPin = "", errorMessage = null) }
+            },
+            onError = { errorCode, errorMessage ->
+                // Do not unlock, display message if it was an error other than intentional user cancellation
+                if (errorCode != 13 && errorCode != 10) {
+                    _lockUiState.update { it.copy(errorMessage = errorMessage) }
+                }
+            },
+            onFailed = {
+                _lockUiState.update { it.copy(errorMessage = "Biyometrik doğrulama tanınamadı. Lütfen tekrar deneyin.") }
+            }
+        )
     }
 
     fun onForgotPinClick() {
@@ -104,10 +146,13 @@ class MainViewModel(
         }
     }
 
-    class Factory(private val securityPreferences: SecurityPreferences) : ViewModelProvider.Factory {
+    class Factory(
+        private val securityPreferences: SecurityPreferences,
+        private val biometricAuthManager: BiometricAuthManager
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MainViewModel(securityPreferences) as T
+            return MainViewModel(securityPreferences, biometricAuthManager) as T
         }
     }
 }

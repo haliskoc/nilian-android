@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nilian.app.core.datastore.SecurityPreferences
+import com.nilian.app.core.security.BiometricAuthManager
 import com.nilian.app.domain.model.ThemeMode
 import com.nilian.app.domain.usecase.JsonBackupRestoreUseCase
 import com.nilian.app.presentation.settings.AppThemeMode
@@ -19,7 +20,8 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val securityPreferences: SecurityPreferences,
-    private val jsonBackupRestoreUseCase: JsonBackupRestoreUseCase
+    private val jsonBackupRestoreUseCase: JsonBackupRestoreUseCase,
+    private val biometricAuthManager: BiometricAuthManager
 ) : ViewModel() {
 
     private val _isAutoLockEnabled = MutableStateFlow(true)
@@ -54,9 +56,13 @@ class SettingsViewModel(
             ThemeMode.DARK -> AppThemeMode.DARK
         }
 
+        val biometricAvailability = biometricAuthManager.checkBiometricAvailability()
+
         SettingsUiState(
             themeMode = appThemeMode,
-            isBiometricsEnabled = biometrics,
+            isBiometricsEnabled = biometrics && biometricAvailability.isAvailable,
+            isBiometricHardwareAvailable = biometricAvailability.isAvailable,
+            biometricStatusMessage = biometricAvailability.message,
             isAutoLockEnabled = autoLock,
             autoRolloverDefault = autoRollover,
             dailyMaxFocusHoursWarning = maxHours,
@@ -174,11 +180,12 @@ class SettingsViewModel(
 
     class Factory(
         private val securityPreferences: SecurityPreferences,
-        private val jsonBackupRestoreUseCase: JsonBackupRestoreUseCase
+        private val jsonBackupRestoreUseCase: JsonBackupRestoreUseCase,
+        private val biometricAuthManager: BiometricAuthManager
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SettingsViewModel(securityPreferences, jsonBackupRestoreUseCase) as T
+            return SettingsViewModel(securityPreferences, jsonBackupRestoreUseCase, biometricAuthManager) as T
         }
     }
 }

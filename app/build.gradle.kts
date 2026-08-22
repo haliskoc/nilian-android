@@ -92,6 +92,10 @@ dependencies {
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
 
+    // Biometric Authentication (Fingerprint & Face Recognition)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment.ktx)
+
     // Jetpack Glance Widget
     implementation(libs.androidx.glance)
     implementation(libs.androidx.glance.appwidget)

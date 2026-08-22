@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.nilian.app.domain.model.ThemeMode
@@ -30,6 +31,7 @@ class SecurityPreferences(private val context: Context) {
     companion object {
         private val KEY_PIN_HASH = stringPreferencesKey("master_pin_hash")
         private val KEY_PIN_SALT = stringPreferencesKey("master_pin_salt")
+        private val KEY_PIN_LENGTH = intPreferencesKey("master_pin_length")
         private val KEY_BIOMETRICS_ENABLED = booleanPreferencesKey("biometrics_enabled")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 
@@ -60,6 +62,13 @@ class SecurityPreferences(private val context: Context) {
     }
 
     /**
+     * Observes the configured length of the Master PIN (4 to 6 digits).
+     */
+    val pinLength: Flow<Int> = preferencesFlow.map { prefs ->
+        prefs[KEY_PIN_LENGTH] ?: 4
+    }
+
+    /**
      * Observes whether biometric unlock is enabled.
      */
     val biometricsEnabled: Flow<Boolean> = preferencesFlow.map { prefs ->
@@ -82,11 +91,14 @@ class SecurityPreferences(private val context: Context) {
      * Sets a new Master PIN by generating a unique cryptographic salt and SHA-256 hash.
      */
     suspend fun setPin(pin: String) {
+        val cleanPin = pin.filter { it.isDigit() }
+        require(cleanPin.length in 4..6) { "PIN 4 ile 6 haneli rakamlardan oluşmalıdır." }
         val salt = generateSalt()
-        val hash = hashPin(pin, salt)
+        val hash = hashPin(cleanPin, salt)
         dataStore.edit { prefs ->
             prefs[KEY_PIN_SALT] = salt
             prefs[KEY_PIN_HASH] = hash
+            prefs[KEY_PIN_LENGTH] = cleanPin.length
         }
     }
 
@@ -94,11 +106,12 @@ class SecurityPreferences(private val context: Context) {
      * Verifies the entered PIN against stored salt and hash using constant-time comparison.
      */
     suspend fun verifyPin(pin: String): Boolean {
+        val cleanPin = pin.filter { it.isDigit() }
         val prefs = preferencesFlow.first()
         val storedHash = prefs[KEY_PIN_HASH] ?: return false
         val storedSalt = prefs[KEY_PIN_SALT] ?: return false
 
-        val calculatedHash = hashPin(pin, storedSalt)
+        val calculatedHash = hashPin(cleanPin, storedSalt)
         return MessageDigest.isEqual(
             storedHash.toByteArray(Charsets.UTF_8),
             calculatedHash.toByteArray(Charsets.UTF_8)
@@ -115,12 +128,21 @@ class SecurityPreferences(private val context: Context) {
     }
 
     /**
+     * Returns the stored PIN length synchronously.
+     */
+    suspend fun getStoredPinLength(): Int {
+        val prefs = preferencesFlow.first()
+        return prefs[KEY_PIN_LENGTH] ?: 4
+    }
+
+    /**
      * Removes the Master PIN and salt.
      */
     suspend fun clearPin() {
         dataStore.edit { prefs ->
             prefs.remove(KEY_PIN_HASH)
             prefs.remove(KEY_PIN_SALT)
+            prefs.remove(KEY_PIN_LENGTH)
         }
     }
 

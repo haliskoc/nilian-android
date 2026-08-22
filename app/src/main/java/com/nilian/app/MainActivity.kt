@@ -24,12 +24,12 @@ import com.nilian.app.presentation.viewmodel.TasksViewModel
 import com.nilian.app.presentation.viewmodel.TimelineViewModel
 import com.nilian.app.presentation.viewmodel.TodayViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
 
     private val app by lazy { application as NilianApp }
 
     private val mainViewModel: MainViewModel by viewModels {
-        MainViewModel.Factory(app.securityPreferences)
+        MainViewModel.Factory(app.securityPreferences, app.biometricAuthManager)
     }
 
     private val todayViewModel: TodayViewModel by viewModels {
@@ -74,7 +74,8 @@ class MainActivity : ComponentActivity() {
     private val settingsViewModel: SettingsViewModel by viewModels {
         SettingsViewModel.Factory(
             app.securityPreferences,
-            app.jsonBackupRestoreUseCase
+            app.jsonBackupRestoreUseCase,
+            app.biometricAuthManager
         )
     }
 

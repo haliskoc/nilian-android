@@ -85,7 +85,9 @@ enum class AppThemeMode(val label: String) {
 
 data class SettingsUiState(
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
-    val isBiometricsEnabled: Boolean = true,
+    val isBiometricsEnabled: Boolean = false,
+    val isBiometricHardwareAvailable: Boolean = true,
+    val biometricStatusMessage: String? = null,
     val isAutoLockEnabled: Boolean = true,
     val autoRolloverDefault: Boolean = true,
     val dailyMaxFocusHoursWarning: Int = 10,
@@ -210,21 +212,26 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    text = "Biometric Unlock",
+                                    text = "Biyometrik Kilit",
                                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Use fingerprint or face unlock",
+                                    text = if (uiState.isBiometricHardwareAvailable) {
+                                        "Parmak İzi veya Yüz Tanıma ile hızlı kilit açma"
+                                    } else {
+                                        uiState.biometricStatusMessage ?: "Bu cihazda biyometrik sensör bulunmuyor"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (uiState.isBiometricHardwareAvailable) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
                                 )
                             }
                             Switch(
                                 checked = uiState.isBiometricsEnabled,
                                 onCheckedChange = onBiometricsToggle,
+                                enabled = uiState.isBiometricHardwareAvailable,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = SagePrimary
@@ -431,21 +438,40 @@ fun SettingsScreen(
             containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
-                    text = "Set New Master PIN",
+                    text = "Ana PIN Kodunu Belirle",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Uygulama açılışında kullanılacak 4 ile 6 haneli sadece rakamlardan oluşan bir PIN belirleyin.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     CalmTextField(
                         value = newPin,
-                        onValueChange = { if (it.length <= 6) newPin = it },
-                        label = "New PIN (4-6 digits)"
+                        onValueChange = { input ->
+                            newPin = input.filter { it.isDigit() }.take(6)
+                            pinError = null
+                        },
+                        label = "Yeni PIN (4-6 Rakam)",
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        )
                     )
                     CalmTextField(
                         value = confirmPin,
-                        onValueChange = { if (it.length <= 6) confirmPin = it },
-                        label = "Confirm New PIN"
+                        onValueChange = { input ->
+                            confirmPin = input.filter { it.isDigit() }.take(6)
+                            pinError = null
+                        },
+                        label = "Yeni PIN'i Onaylayın",
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        )
                     )
                     if (pinError != null) {
                         Text(
@@ -459,22 +485,26 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (newPin.length < 4) {
-                            pinError = "PIN must be at least 4 digits."
-                        } else if (newPin != confirmPin) {
-                            pinError = "PINs do not match."
-                        } else {
-                            onSaveNewPin(newPin)
-                            onDismissChangePinDialog()
+                        when {
+                            newPin.length !in 4..6 -> {
+                                pinError = "PIN kodu 4 ile 6 haneli rakamlardan oluşmalıdır."
+                            }
+                            newPin != confirmPin -> {
+                                pinError = "Girdiğiniz PIN kodları birbiriyle eşleşmiyor."
+                            }
+                            else -> {
+                                onSaveNewPin(newPin)
+                                onDismissChangePinDialog()
+                            }
                         }
                     }
                 ) {
-                    Text("Save PIN", color = SagePrimary, fontWeight = FontWeight.SemiBold)
+                    Text("PIN'i Kaydet", color = SagePrimary, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissChangePinDialog) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("İptal", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )

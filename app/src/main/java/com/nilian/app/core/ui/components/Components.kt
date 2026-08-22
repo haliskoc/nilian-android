@@ -726,6 +726,7 @@ fun CalmTextField(
     isError: Boolean = false,
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
@@ -739,6 +740,7 @@ fun CalmTextField(
         isError = isError,
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
+        visualTransformation = visualTransformation,
         shape = CardShapeMedium,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = SagePrimary,

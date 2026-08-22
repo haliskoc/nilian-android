@@ -63,6 +63,7 @@ fun AdaptiveRootLayout(
 ) {
     val isUnlocked by mainViewModel.isUnlocked.collectAsState()
     val lockUiState by mainViewModel.lockUiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     var currentDestination by rememberSaveable { mutableStateOf(NilianDestination.TODAY) }
     val isExpandedScreen = windowWidthSizeClass != WindowWidthSizeClass.Compact
@@ -73,7 +74,12 @@ fun AdaptiveRootLayout(
             uiState = lockUiState,
             onDigitClick = mainViewModel::onDigitClick,
             onDeleteClick = mainViewModel::onDeleteClick,
-            onBiometricsClick = mainViewModel::onBiometricsClick,
+            onBiometricsClick = {
+                val activity = context as? androidx.fragment.app.FragmentActivity
+                if (activity != null) {
+                    mainViewModel.onBiometricsClick(activity)
+                }
+            },
             onForgotPinClick = mainViewModel::onForgotPinClick,
             onDismissForgotPinDialog = mainViewModel::onDismissForgotPinDialog,
             modifier = modifier

@@ -44,6 +44,9 @@ class NilianApp : Application() {
     lateinit var securityPreferences: SecurityPreferences
         private set
 
+    lateinit var biometricAuthManager: com.nilian.app.core.security.BiometricAuthManager
+        private set
+
     lateinit var taskRepository: TaskRepository
         private set
 
@@ -111,8 +114,9 @@ class NilianApp : Application() {
         // 1. Initialize Room Local Database
         database = NilianDatabase.getInstance(this)
 
-        // 2. Initialize DataStore Preferences
+        // 2. Initialize DataStore Preferences & Biometrics
         securityPreferences = SecurityPreferences.getInstance(this)
+        biometricAuthManager = com.nilian.app.core.security.BiometricAuthManager(this)
 
         // 3. Initialize Repositories
         taskRepository = TaskRepositoryImpl(database.taskDao())
